@@ -40,14 +40,14 @@
 \maketitle
 
 \section{Introducción}
-Este documento presenta la implementación de un algoritmo de trading utilizando una estrategia basada en el estado de animo del mercado, realizado en la plataforma Quantopian.\footnote{https://www.quantopian.com}
+Este documento presenta la creación e implementación de un algoritmo de trading utilizando una estrategia basada en el estado de animo o sentimiento del mercado, realizado en la plataforma Quantopian.\footnote{https://www.quantopian.com}
 
 \section{Estrategia}
-La premisa básica es utilizar información que provea medidas del sentimiento o estado de animo del mercado, detectar cambios de tendencia en estos sentimientos, y a partir de estos cambios crear señales de negociación para establecer posiciones en un activo definido.
+La premisa básica es utilizar información que provea indicadores del sentimiento o estado de animo del mercado, detectar cambios de tendencia en estos sentimientos, y a partir de estos cambios crear señales de negociación para establecer posiciones en un activo a transar.
 
-Así por ejemplo, si se detecta un incremento en el animo alcista \textit{bullish}, es posible inferir que existen incentivos para que el mercado tome posiciones largas, elevando el precio del activo.
+Así por ejemplo, si se detecta un incremento en el animo alcista o \textit{bullish}, es posible inferir que existen incentivos para que el mercado tome posiciones largas, elevando el precio del activo.
 
-Por el contrario, si en el mercado surge un estado de animo a la baja \textit{bearish}, puede que el mercado tome posiciones cortas, liquidando posiciones sobre el activo y llevando el precio de este a la baja.
+Por el contrario, si en el mercado surge un estado de animo a la baja o \textit{bearish}, puede que el mercado tome posiciones cortas o liquidar posiciones sobre el activo, y llevando el precio de este a la baja.
 
 \section{Datos}
 Los datos del estado de animo del mercado en Quantopian son proveídos por PsychSignal, quien ofrece tres conjuntos de datos diferentes:
@@ -71,9 +71,9 @@ Los datos del estado de animo del mercado seleccionados para crear la estrategia
 Con respecto al activo a usar para la estrategia, se selecciono el ETF del indice S\&P500 (SPY)
 
 \section{Implementación}
-Quantopian es una plataforma para crear algoritmos de trading utilizando los conjuntos de datos que tiene disponibles, así como una librería de python propia (zipline) para importar estos datos al algoritmo, calcular indicadores de análisis, y realizar las ordenes.
+Quantopian es una plataforma para crear algoritmos de trading utilizando los conjuntos de datos que tiene disponibles, así como una librería de python propia (zipline) para importar estos datos al algoritmo, calcular indicadores de análisis, y realizar las ordenes en el mercado.
 
-En su interfaz ofrece dos ambientes de desarrollo, con sus propias clases, distinguidos según las necesidades:
+En su interfaz ofrece dos ambientes de desarrollo, con sus propias librerías y clases de Python, distinguidos según las necesidades:
 \begin{itemize}
     \item El ambiente de investigación (Research Environment): es un notebook de jupyter personalizado, diseñado para hacer exploración y análisis de datos, y establecer posibles estrategias de trading.
     \item El entorno de desarrollo (IDE): es donde se programan los algoritmos de trading y se realiza el backtesting del mismo.
@@ -83,7 +83,12 @@ En su interfaz ofrece dos ambientes de desarrollo, con sus propias clases, disti
 
 Para este trabajo, se realizaron algunas pruebas en el entorno de investigación, principalmente importando los datos de sentimiento del mercado y del activo seleccionado.
 
-Para importar datos de activos financieros basicos y realizar cálculos en el ambiente de investigación, se utiliza la clase \textit{Research}
+Para importar datos de activos financieros básicos (principalmente acciones) y realizar cálculos en el ambiente de investigación, se utiliza la clase \textit{Research}.
+
+En este ejemplo, se importan las clases \textit{returns} para calcular retornos de activos y \textit{symbols} para hacer referencia a activos financieros por medio de su ticker.
+
+
+
 \lstset{columns=fullflexible, xleftmargin=1cm, basicstyle=\footnotesize, language=Python, breaklines=true, numbers=left} 
 \begin{lstlisting}
 from quantopian.research import returns, symbols
@@ -91,25 +96,28 @@ from quantopian.research import returns, symbols
 period_start = '2014-01-01'
 period_end = '2014-12-31'
 
-aapl_returns = returns(
+spy_returns = returns(
     assets=symbols('SPY'),
     start=period_start,
     end=period_end,
 )
 
 # Display first 10 rows
-aapl_returns.head(10)
+spy_returns.head(10)
 \end{lstlisting}
 
 Por otro lado, si se desea acceder a los demás conjuntos de datos disponibles en la plataforma, es necesario hacer uso de la clase \textit{RPipeline}.
+
+El objeto pipeline en este ejemplo se crea mediante una función, la cual contiene definiciones de variables que instancian los factores returns, y a columnas especificadas del conjunto de datos de stocktwits (bull\_minus\_bear y total\_scanned\_messages).
+
+Además, se usa la clase \textit{run\_pipeline} para ejecutarla y acceder a los datos procedentes de esta.
 
 \begin{lstlisting}
 # Pipeline imports
 from quantopian.research import run_pipeline
 from quantopian.pipeline import Pipeline
 from quantopian.pipeline.factors import Returns
-from quantopian.pipeline.data.psychsignal import stocktwits
-from quantopian.pipeline.data.psychsignal import twitter_noretweets_free as psychsignal
+from quantopian.pipeline.data.psychsignal import stocktwits as psychsignal
 
 # Pipeline definition
 def make_pipeline():
@@ -140,9 +148,10 @@ output = data_output.xs(
 output.plot(subplots=True);
 \end{lstlisting}
 
-Al definir un pipeline, este trae información de los activos que están registrados en el conjunto de datos US Equity Pricing\footnote{https://www.quantopian.com/data/quantopian/us\_equity\_pricing}
+Al definir un pipeline, este trae información de los activos que están registrados en el conjunto de datos US Equity Pricing\footnote{https://www.quantopian.com/data/quantopian/
+\\us\_equity\_pricing}
 
-El pipeline creado en el ambiente de investigación puede ser usado mas adelante para crear el algoritmo de trading, o como se muestra mas adelante, se crea un pipeline propio.
+El pipeline creado en el ambiente de investigación puede ser usado mas adelante para crear el algoritmo de trading, o como se muestra a continuación, se crea un pipeline propio.
 
 \begin{figure}[ht]
 \centering
@@ -159,9 +168,9 @@ Esta clase permite:
     \item Calcular métricas establecidas \textit{(factors)}, como por ejemplo retornos, medias móviles e indicadores de análisis.
 \end{itemize}
 
-Dentro del entorno de desarrollo, el primer paso es importar las librerías de clases. En este caso la clase Pipeline para la importación de datos a modo de flujo (no estático, como una tabla de pandas), la clase factors con los factores para calcular medias móviles, y medias móviles exponenciales ponderadas. De clase data se importa el conjunto de datos stocktwits.
+Dentro del entorno de desarrollo, el primer paso es importar las librerías de clases, En este caso la clase Pipeline para la importación de datos a modo de flujo (no de forma estático, como una tabla de pandas). La clase factors con los factores para calcular medias móviles, y medias móviles exponenciales ponderadas. De la clase data se importa el conjunto de datos stocktwits.
 
-Además, de la clase \textit{algorithm}, se importan objetos para conectar el objeto Pipeline y obtener sus datos
+Además, de la clase \textit{algorithm}, se importan objetos para conectar el objeto Pipeline al algoritmo y obtener sus datos
 
 \lstset{columns=fullflexible, xleftmargin=1cm, basicstyle=\footnotesize, language=Python, breaklines=true, numbers=left} 
 \begin{lstlisting}
@@ -174,7 +183,11 @@ from quantopian.pipeline.data.psychsignal import stocktwits as psychsignal # Sen
 \subsection{Estructura del algoritmo}
 De forma similar al usar zipline, los algoritmos en Quantopian deben implementar una serie de funciones estandarizadas para procesar los datos y realizar las ordenes, sin embargo no es necesario utilizar el paradigma de orientación a objetos
 
-En este caso se hace uso de dos funciones estandarizadas, la función \textit{initialize}, que se ejecuta al iniciar el algoritmo, 
+En este caso se hace uso de dos funciones estandarizadas, la función \textit{initialize}, que se ejecuta al iniciar el algoritmo, y define las variables con las que se hará referencia a los datos y factores a calcular, así como el pipeline.
+
+Para este caso, se calcula una media móvil y una media móvil exponencial ponderada, ambas de longitud 5, para ser calculadas sobre el campo bull\_minus\_bear.
+
+Con el atributo pipe\_columns se definen las columnas que va a contener el pipeline.
 
 \begin{lstlisting}
 def initialize(context):
@@ -195,7 +208,9 @@ def initialize(context):
     schedule_function(rebalance, date_rules.every_day(), time_rules.market_open())
 \end{lstlisting}
 
-la funcion \textit{before\_trading\_start} se ejecuta en cada iteración del algoritmo, justo antes que se abra el mercado. En este caso se utiliza para obtener los datos del estado de animo del mercado, mas específicamente el campo \textit{sentiment} proveniente del pipeline definido antes, al cual se van a eliminar los valores nulos con el método dropna y filtrarlos para obtener solo los valores para el activo definido, es decir, para el S\&P500. 
+Para terminar, se crea el pipeline (con la función Pipeline), y se conecta al algoritmo con la función attach\_pipeline, dándole un nombre a esta. Además, se programa la ejecución de una función personalizada con attach\_pipeline, que recibe como parámetros una regla de ejecución periódica (en este caso, todos los días) y una regla de momento de ejecución (al abrirse el mercado).\footnote{https://www.quantopian.com/help\#ide-schedulefunction}
+
+la función \textit{before\_trading\_start} se ejecuta en cada iteración del algoritmo, justo antes que se abra el mercado. En este caso se utiliza para obtener los datos del estado de animo del mercado, mas específicamente el campo \textit{sentiment} proveniente del pipeline definido antes, al cual se van a eliminar los valores nulos con el método dropna y filtrarlos para obtener solo los valores para el activo definido, es decir, para el S\&P500. 
 
 \begin{lstlisting}
 def before_trading_start(context, data):
@@ -207,7 +222,7 @@ Por ultimo, se define una función personalizada, la cual contiene las instrucci
 La diseño de la estrategia de negociación es la siguiente:
 
 \begin{itemize}
-    \item \textit{Si} el ultimo valor del sentimiento del mercado es mayor a la media móvil calculada y no se tiene una posición en el activo, \textit{entonces} se toma una posición larga en este
+    \item \textit{Si} el valor mas reciente del sentimiento del mercado es mayor a la media móvil calculada y no se tiene una posición en el activo, \textit{entonces} se toma una posición larga en este
     \item \textit{Si} el ultimo valor del sentimiento del mercado es menor a la media móvil calculada y se tiene una posición larga en el activo, \textit{entonces} liquide la posición en este
 \end{itemize}
 
@@ -234,20 +249,56 @@ def rebalance(context, data):
     log.info("sma: " + str(context.pipe.sma) + ", ewm: " + str(context.pipe.ewma))
 \end{lstlisting}
 
-Primero, se utiliza el objeto portfolio\footnote{https://www.quantopian.com/help\#api-portfolio}, el cual contiene varias propiedades relacionadas con el desempeño del portafolio de inversión, como los retornos, el dinero disponible para realizar operaciones (cash), el valor de este, y para este caso, la posición de los activos. Como puede verse, estas posiciones se guardan en una variable de tipo diccionario, al cual se accede con el identificador del activo seleccionado. Además se crean unas banderas booleanas para identificar las posiciones tomadas.
+Primero, se utiliza el objeto portfolio\footnote{https://www.quantopian.com/help\#api-portfolio}, el cual contiene varias propiedades relacionadas con el desempeño del portafolio de inversión correspondiente al algortimo, como los retornos, el dinero disponible para realizar operaciones (cash), el valor de este, y para este caso, la posición de los activos. Como puede verse, estas posiciones se guardan en una variable de tipo diccionario, al cual se accede con el identificador del activo seleccionado. Además se crean unas banderas booleanas para identificar las posiciones tomadas.
 
 A continuación, se implementa la estrategia mediante una sentencia \textit{if} simple en la cual, utilizando el objeto pipe, se obtienen los valores del valor actual del sentimiento del mercado (pipe.sentiment) y el valor del promedio móvil definido al inicio (pipe.sma)
 
-Para realizar las ordenes, en el caso de compra se utiliza la función \textit{order\_target\_percent}, con la cual se establece una posición en el activo en términos porcentuales del dinero disponible en el portafolio. La cantidad del activo se define con valores entre 0 y 1.
+Para realizar las ordenes, en el caso de compra se utiliza la función \textit{order\_target\_percent}, con la cual se establece una posición en el activo en términos porcentuales del dinero disponible en el portafolio. La cantidad del activo se define con valores entre 0 y 1, siendo 1 el 100\%.
 
-Por ultimo, para verificar la ejecución de la estrategia, se realiza un registro de los valores del estado de animo del mercado, la media móvil calculada, y el valor de la media móvil exponencial calculada, para mostrarse en el panel gráfico con la función \textit{record}. Con la función \textit{log}, se crea un registro para guardar los valores anteriores en la consola.
+Por ultimo, para verificar la ejecución de la estrategia, se realiza un registro de los valores del estado de animo del mercado, la media móvil calculada, y el valor de la media móvil exponencial calculada, para crear un gráfico con las series especificadas y mostrarse en el panel de resultados con la función \textit{record}. Con la función \textit{log}, se crea un registro para guardar los valores anteriores en la consola.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.5\textwidth]{record.png}
+\caption{\label{fig:sol_iter}Gráfico con los datos del pipeline al ejecutar el algoritmo}
+\end{figure}
+
+\section{Resultados}
+
+Se ejecuto el algoritmo utilizando dos indicadores, media móvil simple y media móvil exponencial ponderada; y para diferentes periodicidades, 5, 15 y 30 días.
+
+Los retornos del algoritmo con según los componentes anteriores se muestran en el cuadro 1.
+
+\begin{table}[ht]
+\centering
+\label{table}
+\begin{tabular}{|l|l|l|ll}
+\cline{1-3}
+        & \textbf{sma} & \textbf{ewma} &  &  \\ \cline{1-3}
+5 días  & 12.07\%   & 9.04\%    &  &  \\ \cline{1-3}
+15 días & 7.12\%   & 4.01\%    &  &  \\ \cline{1-3}
+30 días & 8.85\%   & 4.23\%    &  &  \\ \cline{1-3}
+\end{tabular}
+\caption{Retornos del algoritmo para diferentes indicadores y periodicidades}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.5\textwidth]{graph.png}
+\caption{\label{fig:sol_iter}Gráfico con los resultados de ejecución del algoritmo para sma 5 días}
+\end{figure}
 
 \section{Conclusiones}
-Esta estrategia podría entenderse como una versión simplificada de un análisis de sentimiento, en la medida que las tendencias de búsqueda de un termino están relacionadas con un sentimiento positivo o negativo sobre la ocurrencia de algún evento o hecho. De esta forma, dichas tendencias pueden estar relacionadas con los comportamientos de activos financieros. Esta relación puede verse con el ejemplo propuesto de las tendencias de QE y el indice NYSE Composite.
+Como puede verse en los resultados, si bien la estrategia obtuvo retornos positivos, estos no son mayores a los de una estrategia \textit{buy-and-hold}. Sobre los indicadores y periodicidades calculados, se obtuvo mejores resultados con una media móvil simple a 5 días de los datos de sentimiento del mercado.
 
-También hay que tener en cuenta otros posibles indicadores a aplicar sobre los datos de tendencias, que puedan mejorar el desempeño de la estrategia de inversión.
+Luego, para obtener una estrategia con retornos consistentes es necesario analizar otros factores, como puede ser el volumen de mensajes publicados y analizados, y complementar con reglas de decisión mas complejas, que tengan en cuenta otros escenarios que posiblemente se estarán pasando por alto.
 
-Otro posible escenario podría ser utilizar dos tendencias de términos que sean uno opuesto al otro, y realizar una estrategia de tipo \textit{Pairs Trading}.
+Con respecto a la plataforma Quantopian, y luego de una revisión de la documentación existente, se evidencian varios métodos para acceder a un pipeline dentro de un algoritmo de negociación, pero esta es compleja y los ejemplos disponibles no son los mejores.
+
+Además, existe documentación de la librería zipline que no se encuentra en la plataforma, luego se hace necesario leer también esta documentación.
+
+El entorno de desarrollo es mas cercano a trabajar con un editor de textos de escritorio, sin embargo hacen falta características de editores mas avanzados, como el completado de código y una barra para depuración (es posible hacer depuración del código, pero por medio de pdb, que es un depurador por consola). Por otro lado, para la creación de gráficos mas personalizados de los resultados, se hace necesario utilizar el ambiente de investigación.
+
 \end{document}
 
 
